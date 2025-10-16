@@ -9,9 +9,9 @@ app.get("/", (req, res) => {
     res.end()
 })
 
-app.listen(PORT, () => {
-    console.log(`app is listening on port ${PORT}`);
+// app.listen(PORT, () => {
+//     console.log(`app is listening on port ${PORT}`);
     
-})
+// })
 
 module.exports = app
