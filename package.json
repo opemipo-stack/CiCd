@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "test": "jest",
-    "start": "node cicd.js"
+    "start": "node app.js"
   },
   "keywords": [],
   "author": "",

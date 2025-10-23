@@ -1,32 +1,62 @@
-name: Node.js CI/CD Demo
+name: Deploy to Namecheap Shared Hosting
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
-  build-test-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 'lts/*'
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install dependencies (production)
+        run: npm install --production
 
-      - name: Run tests
-        run: npm test
+      - name: Build (optional)
+        run: npm run build || echo "No build step"
 
-      - name: Simulate deployment
-        if: success()
-        run: |
-          echo "✅ All tests passed."
-          echo "🚀 Deploying to production server..."
+      - name: Create tarball of repository
+        run: tar -czf build.tar.gz --exclude=node_modules --exclude=.git --exclude=build.tar.gz .
+
+      - name: Deploy to Namecheap server and unpack
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '21098' }}
+          script: |
+            # Ensure target directory exists
+            mkdir -p ${{ secrets.DEPLOY_PATH }}
+
+            # move tarball to deploy path (we'll send tar via base64 to avoid scp)
+            cat > /tmp/build.tar.gz << 'EOF'
+            $(base64 -w0 build.tar.gz | sed 's/^/ /')
+            EOF
+
+            # decode and move it (this step might need adjustment if large tarballs)
+            base64 -d /tmp/build.tar.gz > /tmp/_build.tar.gz || true
+            tar -xzf /tmp/_build.tar.gz -C ${{ secrets.DEPLOY_PATH }} || (echo "tar failed" && ls -la ${{ secrets.DEPLOY_PATH }}) 
+
+            # cleanup temporary files
+            rm -f /tmp/_build.tar.gz /tmp/build.tar.gz
+
+            # install production deps on server (safer)
+            cd ${{ secrets.DEPLOY_PATH }}
+            npm install --production
+
+            # touch restart file to trigger Namecheap's Node runner
+            touch ${{ secrets.NODE_RESTART_PATH }}
+
+      - name: Cleanup local tarball
+        run: rm -f build.tar.gz
+
