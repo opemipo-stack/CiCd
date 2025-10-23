@@ -25,7 +25,7 @@ jobs:
         run: npm run build || echo "No build step"
 
       - name: Create tarball of repository
-        run: tar -czf build.tar.gz --exclude=node_modules --exclude=.git --exclude=build.tar.gz .
+        run: tar -czf build.tar.gz --warning=no-file-changed --exclude=node_modules --exclude=.git --exclude=build.tar.gz .
 
       - name: Deploy to Namecheap server and unpack
         uses: appleboy/ssh-action@v0.1.10
